@@ -3,12 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def subsequent_mask(seq_len:int, device=None):
+def subsequent_mask(seq_len:int, device='cpu'):
     """
     Создаёт маску “subsequent” для decoder‑части трансформера
-    
-    Маска имеет форму [seq_len, seq_len] и содержит `-inf` в верхнем треугольнике
-    (включая диагональ), чтобы запрещать обращение к будущим токенам
 
     Args:
         seq_len (int): длина целевой последовательности
@@ -19,9 +16,9 @@ def subsequent_mask(seq_len:int, device=None):
     """
     attn_shape = (seq_len, seq_len)
     mask_bool = torch.triu(torch.ones(attn_shape, device=device), diagonal=1).bool()
-    mask_float = torch.full(attn_shape, float('-inf'), device=device)
-    mask_float[~mask_bool] = 0.0
-    return mask_float
+    # mask_float = torch.full(attn_shape, float('-inf'), device=device)
+    # mask_float[~mask_bool] = 0.0
+    return mask_bool
 
 
 class LearnablePositionalEncoding(nn.Module):
@@ -29,7 +26,7 @@ class LearnablePositionalEncoding(nn.Module):
     Позиционное кодирование с обучаемыми эмбеддингами
 
     Вместо фиксированных синусоидальных векторов используется
-    learnable embedding, который добавляется к токен‑эмбеддингам
+    embedding, который добавляется к токен‑эмбеддингам
     """
 
     def __init__(self, embed_dim:int, max_len:int, dropout:float, batch_first:bool, padding_idx:int):
@@ -42,9 +39,9 @@ class LearnablePositionalEncoding(nn.Module):
             padding_idx (int): индекс токена‑паддинга (не учитывается)
         """
         super().__init__()
+        self._max_len = max_len + 2
         self.dropout = nn.Dropout(dropout)
-        self.pos_embedding = nn.Embedding(max_len, embed_dim, padding_idx=padding_idx)
-        self._max_len = max_len
+        self.pos_embedding = nn.Embedding(self._max_len, embed_dim, padding_idx=padding_idx)
         self._batch_first = batch_first
 
     def forward(self, x:torch.Tensor) -> torch.Tensor:
@@ -70,9 +67,6 @@ class LearnablePositionalEncoding(nn.Module):
 class TransformerModel(nn.Module):
     """
     Seq2Seq трансформер для генерации текста
-
-    Поддерживает задачу перевода/генерации с использованием
-    learnable positional encodings и возможностью задания температуры
     """
 
     def __init__(self,
@@ -89,7 +83,7 @@ class TransformerModel(nn.Module):
             num_decoder_layers (int): количество слоёв decoder‑части
             dim_fc_hidden (int): размер скрытого слоя feedforward
             dropout (float): коэффициент dropout
-            max_len (int): максимальная длина последовательности
+            max_len (int): максимальная длина последовательности без учета BOS и EOS
             batch_first (bool): формат входов [B,T,D] или [T,B,D]
             padding_idx (int): индекс токена‑паддинга
         """
@@ -118,8 +112,8 @@ class TransformerModel(nn.Module):
         # Финальный классификатор
         self.classifier = nn.Linear(d_model, target_vocab_size)
 
-    def forward(self, source: torch.Tensor, target: torch.Tensor,
-                temperature: float, apply_softmax: bool = True):
+    def forward(self, source:torch.Tensor, target:torch.Tensor,
+                temperature:float, apply_softmax:bool = True):
         """
         Прямой ход модели
         Args:
@@ -133,12 +127,12 @@ class TransformerModel(nn.Module):
         device = source.device
 
         # 1. Эмбеддинги и масштабирование
-        source_embed = self.source_embedding(source) * math.sqrt(self.embed_dim)
-        target_embed = self.target_embedding(target) * math.sqrt(self.embed_dim)
+        source_embed = self.source_embedding(source)
+        target_embed = self.target_embedding(target)
 
         # 2. Добавляем позиционное кодирование
-        source_embed = self.pos_encoding_encoder(source_embed)
-        target_embed = self.pos_encoding_decoder(target_embed)
+        source_embed = self.pos_encoding_encoder(source_embed) * math.sqrt(self.embed_dim)
+        target_embed = self.pos_encoding_decoder(target_embed) * math.sqrt(self.embed_dim)
 
         # 3. Проекция в пространство d_model
         source_proj = self.embed_to_model_projection(source_embed)

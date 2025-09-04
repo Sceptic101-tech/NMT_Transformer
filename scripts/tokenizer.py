@@ -2,7 +2,7 @@ import regex as re
 
 class SeparatorTokenizer:
     """
-    Простая реализация токенизации по разделителю
+    Простая реализация алгоритма токенизации по разделителю
     """
 
     def __init__(self):
@@ -21,6 +21,6 @@ class SeparatorTokenizer:
             list[str]: список токенов
         """
         # Разделяем знаки препинания пробелами, чтобы они стали отдельными токенами
-        text = re.sub(r'([^\w\s]|_)', r' \1 ', text)
+        text = re.sub(r'([^\w\s])', r' \1 ', text)
         text = re.sub(r'[\t\n\r\f\v]', r' ', text)
         return text.split(separator)

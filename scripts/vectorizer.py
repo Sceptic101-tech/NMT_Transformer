@@ -2,12 +2,12 @@ import numpy as np
 
 class Seq2Seq_Vectorizer:
     """
-    Векторизатор для задач seq‑to‑seq
+    Векторизатор для задач Seq2Seq
     Предоставляет методы преобразования списка токенов в числовой массив
     индексов, а также one‑hot представление
     """
 
-    def __init__(self, source_vocab, target_vocab, max_source_len:int, max_target_len:int):
+    def __init__(self, tokens_vocab, max_source_len:int, max_target_len:int):
         """
         Args:
             source_vocab (Vocabulary): словарь исходного языка
@@ -15,14 +15,13 @@ class Seq2Seq_Vectorizer:
             max_source_len (int): максимальная длина исходной последовательности без BOS/EOS. При векторизации к ней добавляются 2 токена
             max_target_len (int): максимальная длина целевой последовательности без BOS/EOS. При векторизации к ней добавляется 1 токен
         """
-        self.source_vocab = source_vocab
-        self.target_vocab = target_vocab
+        self.tokens_vocab = tokens_vocab
         self.max_source_len = max_source_len
         self.max_target_len = max_target_len
 
     def _vectorize(self, indices:list[int], forced_len:int = -1, mask_index:int = 0) -> np.array:
         """
-        Заполняет массив до нужной длины, добавляя `mask_index`
+        Заполняет массив до нужной длины, добавляя mask_index
 
         Args:
             indices (list[int]): список индексов токенов
@@ -39,7 +38,7 @@ class Seq2Seq_Vectorizer:
         result_vec[len(indices):] = mask_index
         return result_vec
 
-    def _get_indices(self, tokens:list[str], add_bos:bool = False, add_eos:bool = False, is_target:bool = False) -> list[int]:
+    def _get_indices(self, tokens:list[str], add_bos:bool = False, add_eos:bool = False) -> list[int]:
         """
         Преобразует список токенов в индексы, добавляя BOS/EOS при необходимости
 
@@ -53,19 +52,18 @@ class Seq2Seq_Vectorizer:
             list[int]: индексы токенов с BOS/EOS
         """
         indices = []
-        cw_vocab = self.target_vocab if is_target else self.source_vocab
 
         if add_bos:
-            indices.append(cw_vocab._bos_index)
+            indices.append(self.tokens_vocab._bos_index)
 
         for token in tokens:
-            indices.append(cw_vocab.get_token_index(token))
+            indices.append(self.tokens_vocab.get_token_index(token))
 
         if add_eos:
-            indices.append(cw_vocab._eos_index)
+            indices.append(self.tokens_vocab._eos_index)
         return indices
 
-    def vectorize_vector_onehot(self, tokens:list[str], is_target:bool = False) -> np.array:
+    def vectorize_vector_onehot(self, tokens:list[str]) -> np.array:
         """
         Преобразует токены в one‑hot вектор
 
@@ -76,10 +74,9 @@ class Seq2Seq_Vectorizer:
         Returns:
             np.ndarray[float32]: one‑hot вектор длиной len(vocab)
         """
-        cw_vocab = self.target_vocab if is_target else self.source_vocab
-        onehot_vec = np.zeros(len(cw_vocab), dtype=np.float32)
+        onehot_vec = np.zeros(len(self.tokens_vocab), dtype=np.float32)
         for token in tokens:
-            onehot_vec[cw_vocab.get_token_index(token)] = 1.0
+            onehot_vec[self.tokens_vocab.get_token_index(token)] = 1.0
         return onehot_vec
 
     def vectorize(self, source_tokens:list[str], target_tokens:list[str] = None, use_dataset_max_len:bool = True):
@@ -103,15 +100,15 @@ class Seq2Seq_Vectorizer:
         max_source_len = self.max_source_len + 2 if use_dataset_max_len else -1
         max_target_len = self.max_target_len + 1 if use_dataset_max_len else -1
 
-        source_indices = self._get_indices(source_tokens, add_bos=True, add_eos=True, is_target=False)
+        source_indices = self._get_indices(source_tokens, add_bos=True, add_eos=True)
         source_vec = self._vectorize(source_indices, max_source_len)
 
         target_x_vec = target_y_vec = None
         if target_tokens is not None:
-            target_x_indices = self._get_indices(target_tokens, add_bos=True, add_eos=False, is_target=True)
+            target_x_indices = self._get_indices(target_tokens, add_bos=True, add_eos=False)
             target_x_vec = self._vectorize(target_x_indices, max_target_len)
 
-            target_y_indices = self._get_indices(target_tokens, add_bos=False, add_eos=True, is_target=True)
+            target_y_indices = self._get_indices(target_tokens, add_bos=False, add_eos=True)
             target_y_vec = self._vectorize(target_y_indices, max_target_len)
 
         return {

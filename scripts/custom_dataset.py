@@ -5,7 +5,7 @@ class CustomDataset:
     При инициализации класс делит исходный DataFrame на три раздела: train,
     validation и test, а также сохраняет ссылки на каждый из них
     Для дальнейшего обучения удобно переключаться между наборами через
-    `set_dataframe_split`
+    set_dataframe_split()
     """
 
     def __init__(self, dataframe, tokenizer, vectorizer):
@@ -19,7 +19,7 @@ class CustomDataset:
                 текста в числовые представления
 
         Инициализирует внутренние DataFrame‑ы и их длины, а также
-        словарь `lookup_split`, позволяющий быстро переключаться между
+        словарь lookup_split, позволяющий быстро переключаться между
         набором train/validation/test
         """
         self._vectorizer = vectorizer
@@ -85,6 +85,6 @@ class CustomDataset:
         Переключает внутренний DataFrame на нужный раздел
 
         Args:
-            split (str): один из ['train', 'validation', 'test']. По умолчанию – ‘train’
+            split (str): один из ['train', 'validation', 'test']. По умолчанию train
         """
         self._cw_dataframe, self._cw_df_len = self._lookup_split[split]
