@@ -1,2 +1,1 @@
-# NMT_Transformer
-Implementation of a neural network with transformer architecture using the PyTorch library
+Generation of cooking recipes in Russian using a neural network with transformer architecture
